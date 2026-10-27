@@ -1,0 +1,16 @@
+{
+  "name": "com.jasbrela.essentials",
+  "displayName": "Essentials",
+  "version": "0.1.0",
+  "unity": "6000.6",
+  "unityRelease": "7f1",
+  "dependencies": {
+    "com.unity.test-framework": "1.6.0"
+  },
+  "author": {
+    "name": "Jasbrela",
+    "url": "https://github.com/jasbrela/"
+  },
+  "documentationUrl": "https://github.com/jasbrela/EssentialsForUnity",
+  "hideInEditor": false
+}
