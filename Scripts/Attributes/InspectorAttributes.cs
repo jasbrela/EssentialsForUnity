@@ -62,6 +62,8 @@ public sealed class LabelAttribute : PropertyAttribute
 
 // For [SerializeReference] fields and lists: adds a dropdown to pick which subclass of the field's type to create.
 // Only lists non-abstract [Serializable] classes with a parameterless constructor.
+// Needs [SerializeReference]: with [SerializeField] Unity doesn't serialize abstract types at all.
+//   [SerializeReference, TypePicker] public SkillEffect effect;
 //   [SerializeReference, TypePicker] public List<SkillEffect> effects;
 [AttributeUsage(AttributeTargets.Field)]
 public sealed class TypePickerAttribute : PropertyAttribute { }
@@ -69,3 +71,8 @@ public sealed class TypePickerAttribute : PropertyAttribute { }
 // Draws the field greyed out so it can be seen but not edited.
 [AttributeUsage(AttributeTargets.Field)]
 public sealed class ReadOnlyAttribute : PropertyAttribute { }
+
+// Shows a warning icon on the field while its object reference is None (or any element is None, for arrays and lists).
+// Also counts toward the warning icon of the header the field is under, whichever header that is.
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class RequiredAttribute : Attribute { }

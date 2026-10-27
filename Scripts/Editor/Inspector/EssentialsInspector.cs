@@ -12,6 +12,7 @@ namespace InspectorTools
     // Default inspector for every object. Adds:
     // - preset headers ([HeaderRequired] etc.) as colored foldouts that group the fields below them
     // - a warning icon on headers with warnIfMissing while a reference in their group is None
+    // - a warning icon on [Required] fields while their reference is None, also shown on their header
     // - [ShowIf] / [HideIf] / [ReadOnly] on fields and [Button] on methods
     // Objects without any of these attributes are drawn with Unity's default inspector.
     [CanEditMultipleObjects]
@@ -26,6 +27,7 @@ namespace InspectorTools
             public SerializedProperty Property;
             public GUIContent Label; // null keeps Unity's label
             public bool ReadOnly;
+            public bool Required;
             public readonly List<(ShowIfAttribute Attribute, MemberInfo Member)> Conditions = new();
         }
 
@@ -100,7 +102,7 @@ namespace InspectorTools
                 _groups.Add(new Group { Header = new HeaderDebugAttribute() });
 
             _useDefaultInspector = _buttons.Count == 0 &&
-                                   _groups.All(g => g.Header == null && g.Entries.All(e => e.Conditions.Count == 0 && e.Label == null));
+                                   _groups.All(g => g.Header == null && g.Entries.All(e => e.Conditions.Count == 0 && e.Label == null && !e.Required));
         }
 
         private Entry CreateEntry(SerializedProperty property, FieldInfo field)
@@ -112,6 +114,8 @@ namespace InspectorTools
             };
 
             if (field == null) return entry;
+
+            entry.Required = field.GetCustomAttribute<RequiredAttribute>(true) != null;
 
             var label = field.GetCustomAttribute<LabelAttribute>(true);
             if (label != null) entry.Label = new GUIContent(label.Label, property.tooltip);
@@ -200,6 +204,23 @@ namespace InspectorTools
                 if (entry.Label != null) EditorGUILayout.PropertyField(entry.Property, entry.Label, true);
                 else EditorGUILayout.PropertyField(entry.Property, true);
             }
+
+            if (!entry.Required) return;
+
+            var missing = CountMissing(entry.Property);
+            if (missing == 0) return;
+
+            // Drawn at the right edge of the label, on the field's first line (the foldout line for arrays).
+            var rect = GUILayoutUtility.GetLastRect();
+            var iconRect = new Rect(rect.x + EditorGUIUtility.labelWidth - 18f, rect.y, 18f, EditorGUIUtility.singleLineHeight);
+            DrawWarningIcon(iconRect, missing);
+        }
+
+        private static void DrawWarningIcon(Rect rect, int missing)
+        {
+            var icon = EditorGUIUtility.IconContent("console.warnicon.sml");
+            var content = new GUIContent(icon.image, missing == 1 ? "1 reference is missing" : $"{missing} references are missing");
+            GUI.Label(rect, content);
         }
 
         // Returns whether the group is expanded.
@@ -213,13 +234,8 @@ namespace InspectorTools
             var newExpanded = EditorGUI.Foldout(rect, expanded, header.Label, true, GetFoldoutStyle(header.Color));
             if (newExpanded != expanded) EditorPrefs.SetBool(key, newExpanded);
 
-            var missing = header.WarnIfMissing ? entries.Sum(e => CountMissing(e.Property)) : 0;
-            if (missing > 0)
-            {
-                var icon = EditorGUIUtility.IconContent("console.warnicon.sml");
-                var content = new GUIContent(icon.image, missing == 1 ? "1 reference is missing" : $"{missing} references are missing");
-                GUI.Label(new Rect(rect.xMax - 18f, rect.y, 18f, rect.height), content);
-            }
+            var missing = entries.Where(e => header.WarnIfMissing || e.Required).Sum(e => CountMissing(e.Property));
+            if (missing > 0) DrawWarningIcon(new Rect(rect.xMax - 18f, rect.y, 18f, rect.height), missing);
 
             return newExpanded;
         }
